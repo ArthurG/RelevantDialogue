@@ -25,17 +25,18 @@ from typing import Callable, Dict, Optional
 
 import numpy as np
 
-from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer, EvalPrediction, GlueDataset
-from relevant_dialog_dataset import ReleventDialogDataTrainingArguments as DataTrainingArguments
+from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer, EvalPrediction
+from relevent_dialog_dataset import ReleventDialogDataTrainingArguments as DataTrainingArguments
 from transformers import (
     HfArgumentParser,
     Trainer,
     TrainingArguments,
-    glue_compute_metrics,
     glue_output_modes,
     glue_tasks_num_labels,
     set_seed,
 )
+
+from relevent_dialog_dataset import ReleventDialogDataset
 
 
 logger = logging.getLogger(__name__)
@@ -134,26 +135,26 @@ def main():
 
     # Get datasets
     train_dataset = (
-        GlueDataset(data_args, tokenizer=tokenizer, cache_dir=model_args.cache_dir) if training_args.do_train else None
+        ReleventDialogDataset(data_args, tokenizer=tokenizer, cache_dir=model_args.cache_dir) if training_args.do_train else None
     )
     eval_dataset = (
-        GlueDataset(data_args, tokenizer=tokenizer, mode="dev", cache_dir=model_args.cache_dir)
+        ReleventDialogDataset(data_args, tokenizer=tokenizer, mode="dev", cache_dir=model_args.cache_dir)
         if training_args.do_eval
         else None
     )
     test_dataset = (
-        GlueDataset(data_args, tokenizer=tokenizer, mode="test", cache_dir=model_args.cache_dir)
+        ReleventDialogDataset(data_args, tokenizer=tokenizer, mode="test", cache_dir=model_args.cache_dir)
         if training_args.do_predict
         else None
     )
 
-    def build_compute_metrics_fn(task_name: str) -> Callable[[EvalPrediction], Dict]:
+    def build_compute_metrics_fn() -> Callable[[EvalPrediction], Dict]:
+        def simple_accuracy(preds, labels):
+            return (preds == labels).mean()
+
         def compute_metrics_fn(p: EvalPrediction):
-            if output_mode == "classification":
-                preds = np.argmax(p.predictions, axis=1)
-            elif output_mode == "regression":
-                preds = np.squeeze(p.predictions)
-            return glue_compute_metrics(task_name, preds, p.label_ids)
+            preds = np.argmax(p.predictions, axis=1)
+            return {"acc": simple_accuracy(preds, p.label_ids)}
 
         return compute_metrics_fn
 
@@ -163,7 +164,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        compute_metrics=build_compute_metrics_fn(data_args.task_name),
+        compute_metrics=build_compute_metrics_fn(),
     )
 
     # Training
@@ -184,22 +185,17 @@ def main():
 
         # Loop to handle MNLI double evaluation (matched, mis-matched)
         eval_datasets = [eval_dataset]
-        if data_args.task_name == "mnli":
-            mnli_mm_data_args = dataclasses.replace(data_args, task_name="mnli-mm")
-            eval_datasets.append(
-                GlueDataset(mnli_mm_data_args, tokenizer=tokenizer, mode="dev", cache_dir=model_args.cache_dir)
-            )
 
         for eval_dataset in eval_datasets:
-            trainer.compute_metrics = build_compute_metrics_fn(eval_dataset.args.task_name)
+            trainer.compute_metrics = build_compute_metrics_fn()
             eval_result = trainer.evaluate(eval_dataset=eval_dataset)
 
             output_eval_file = os.path.join(
-                training_args.output_dir, f"eval_results_{eval_dataset.args.task_name}.txt"
+                training_args.output_dir, f"eval_results_relevent_dialogue.txt"
             )
             if trainer.is_world_master():
                 with open(output_eval_file, "w") as writer:
-                    logger.info("***** Eval results {} *****".format(eval_dataset.args.task_name))
+                    logger.info("***** Eval results Relevent Dialogue *****")
                     for key, value in eval_result.items():
                         logger.info("  %s = %s", key, value)
                         writer.write("%s = %s\n" % (key, value))
@@ -209,11 +205,6 @@ def main():
     if training_args.do_predict:
         logging.info("*** Test ***")
         test_datasets = [test_dataset]
-        if data_args.task_name == "mnli":
-            mnli_mm_data_args = dataclasses.replace(data_args, task_name="mnli-mm")
-            test_datasets.append(
-                GlueDataset(mnli_mm_data_args, tokenizer=tokenizer, mode="test", cache_dir=model_args.cache_dir)
-            )
 
         for test_dataset in test_datasets:
             predictions = trainer.predict(test_dataset=test_dataset).predictions
@@ -221,11 +212,11 @@ def main():
                 predictions = np.argmax(predictions, axis=1)
 
             output_test_file = os.path.join(
-                training_args.output_dir, f"test_results_{test_dataset.args.task_name}.txt"
+                training_args.output_dir, f"test_results_relevent_dialogue.txt"
             )
             if trainer.is_world_master():
                 with open(output_test_file, "w") as writer:
-                    logger.info("***** Test results {} *****".format(test_dataset.args.task_name))
+                    logger.info("***** Test results relevent_dialogue *****")
                     writer.write("index\tprediction\n")
                     for index, item in enumerate(predictions):
                         if output_mode == "regression":

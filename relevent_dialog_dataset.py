@@ -9,14 +9,12 @@ import torch
 from filelock import FileLock
 from torch.utils.data.dataset import Dataset
 
-"""
-from ...tokenization_roberta import RobertaTokenizer, RobertaTokenizerFast
-from ...tokenization_utils import PreTrainedTokenizer
-from ...tokenization_xlm_roberta import XLMRobertaTokenizer
-from ..processors.glue import glue_convert_examples_to_features, glue_output_modes, glue_processors
-from ..processors.utils import InputFeatures
-"""
+from transformers.data.processors.utils import InputFeatures
+from transformers.tokenization_utils import PreTrainedTokenizer
+from transformers.tokenization_roberta import  RobertaTokenizer, RobertaTokenizerFast
+from transformers.tokenization_xlm_roberta import XLMRobertaTokenizer
 
+from relevent_data_processor import ReleventDialogueProcessor, relevent_dialog_convert_examples_to_features
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +43,6 @@ class ReleventDialogDataTrainingArguments:
         default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
 
-"""
 
 class Split(Enum):
     train = "train"
@@ -53,25 +50,27 @@ class Split(Enum):
     test = "test"
 
 
-class GlueDataset(Dataset):
+class ReleventDialogDataset(Dataset):
+    """
     This will be superseded by a framework-agnostic approach
     soon.
+    """
 
-    args: GlueDataTrainingArguments
+    args: ReleventDialogDataTrainingArguments
     output_mode: str
     features: List[InputFeatures]
 
     def __init__(
         self,
-        args: GlueDataTrainingArguments,
+        args: ReleventDialogDataTrainingArguments,
         tokenizer: PreTrainedTokenizer,
         limit_length: Optional[int] = None,
         mode: Union[str, Split] = Split.train,
         cache_dir: Optional[str] = None,
     ):
         self.args = args
-        self.processor = glue_processors[args.task_name]()
-        self.output_mode = glue_output_modes[args.task_name]
+        self.processor = ReleventDialogueProcessor()
+        self.output_mode = "classification"
         if isinstance(mode, str):
             try:
                 mode = Split[mode]
@@ -80,12 +79,12 @@ class GlueDataset(Dataset):
         # Load data features from cache or dataset file
         cached_features_file = os.path.join(
             cache_dir if cache_dir is not None else args.data_dir,
-            "cached_{}_{}_{}_{}".format(
-                mode.value, tokenizer.__class__.__name__, str(args.max_seq_length), args.task_name,
+            "cached_{}_{}_{}".format(
+                mode.value, tokenizer.__class__.__name__, str(args.max_seq_length)
             ),
         )
         label_list = self.processor.get_labels()
-        if args.task_name in ["mnli", "mnli-mm"] and tokenizer.__class__ in (
+        if tokenizer.__class__ in (
             RobertaTokenizer,
             RobertaTokenizerFast,
             XLMRobertaTokenizer,
@@ -116,7 +115,7 @@ class GlueDataset(Dataset):
                     examples = self.processor.get_train_examples(args.data_dir)
                 if limit_length is not None:
                     examples = examples[:limit_length]
-                self.features = glue_convert_examples_to_features(
+                self.features = relevent_dialog_convert_examples_to_features(
                     examples,
                     tokenizer,
                     max_length=args.max_seq_length,
@@ -138,4 +137,3 @@ class GlueDataset(Dataset):
 
     def get_labels(self):
         return self.label_list
-"""
