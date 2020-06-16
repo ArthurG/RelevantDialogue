@@ -52,11 +52,12 @@ def build_negative_examples(convos, count):
     return ans
 
 # Train test split
-test = convos[:3575]
-train = convos[3575:]
+test = convos[:10]
+train = convos[-100:]
+train = convos[:10]
 
-train_path= "../relevent_dialog_data_full/relevent_dialog_train.txt"
-test_path = "../relevent_dialog_data_full/relevent_dialog_test.txt"
+train_path= "../relevent_dialog_data_small/train.tsv"
+test_path = "../relevent_dialog_data_small/dev.tsv"
 
 with open(train_path, "w") as rel_dia:
     pos = build_positive_examples(train)
@@ -64,14 +65,17 @@ with open(train_path, "w") as rel_dia:
 
     print(len(pos))
     print(len(neg))
-    rel_dia.write("sent1\t\sent2\t\label\n")
+    rel_dia.write("idx\tsent1\tsent2\tlabel\n")
 
+    count = 1
     for x, y, z in pos:
-        line = "{}\t{}\t{}\n".format(x, y, z)
+        line = "{}\t{}\t{}\t{}\n".format(count, x, y, z)
+        count+=1
         #print("line", line, "end")
         rel_dia.write(line)
     for x, y, z in neg:
-        line = "{}\t{}\t{}\n".format(x, y, z)
+        line = "{}\t{}\t{}\t{}\n".format(count, x, y, z)
+        count+=1
         rel_dia.write(line)
 
 with open(test_path, "w") as rel_dia:
@@ -81,11 +85,14 @@ with open(test_path, "w") as rel_dia:
     print(len(pos))
     print(len(neg))
 
-    rel_dia.write("sent1\t\sent2\t\label\n")
+    rel_dia.write("idx\tsent1\tsent2\tlabel\n")
+    count = 1
     for x, y, z in pos:
-        line = "{}\t{}\t{}\n".format(x, y, z)
+        line = "{}\t{}\t{}\t{}\n".format(count, x, y, z)
+        count+=1
         #print("line", line, "end")
         rel_dia.write(line)
     for x, y, z in neg:
-        line = "{}\t{}\t{}\n".format(x, y, z)
+        line = "{}\t{}\t{}\t{}\n".format(count, x, y, z)
+        count+=1
         rel_dia.write(line)

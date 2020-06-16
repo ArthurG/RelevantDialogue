@@ -20,14 +20,12 @@ class ReleventDialogueProcessor(DataProcessor):
 
     def get_example_from_tensor_dict(self, tensor_dict):
         """See base class."""
-        """
         return InputExample(
             tensor_dict["idx"].numpy(),
-            tensor_dict["previous_message"].numpy().decode("utf-8"),
-            tensor_dict["next"].numpy().decode("utf-8"),
+            tensor_dict["sent1"].numpy().decode("utf-8"),
+            tensor_dict["sent2"].numpy().decode("utf-8"),
             str(tensor_dict["label"].numpy()),
         )
-        """
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -39,7 +37,7 @@ class ReleventDialogueProcessor(DataProcessor):
 
     def get_test_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+        return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "test")
 
     def get_labels(self):
         """See base class."""
